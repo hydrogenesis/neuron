@@ -2,6 +2,10 @@
 #include <cmath>
 #include <stdio.h>
 
+HH::HH():HH(0.0, 200, 0.001, -65, 0.5, 0.06, 0.5,
+     120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 0.3) {
+}
+
 HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
       double gNa, double eNa, double gK, double eK, double gL, double eL, double g) {
   this->i = 0;
@@ -43,7 +47,10 @@ HH::~HH() {
 }
 
 double HH::DynamicI(double t, double I) const {
-  return I;
+  return I*std::sin(t);
+  if (t < 50) return I;
+  else
+    return 0.0;
 }
 
 void HH::Append(HH* next_hh) {

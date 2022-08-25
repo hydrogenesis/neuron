@@ -30,6 +30,7 @@ public:
   vector<HH*> prev;
   vector<HH*> next;
 
+  HH();
   HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
       double gNa, double eNa, double gK, double eK, double gL, double eL, double g);
   ~HH();
