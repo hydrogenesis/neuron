@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 HH::HH():HH(0.0, 200, 0.001, -65, 0.5, 0.06, 0.5,
-     120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 0.3) {
+     120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 3) {
 }
 
 HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
@@ -23,23 +23,16 @@ HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double
   this->gL = gL;
   this->eL = eL;
   this->g = g;
-  t.resize(loop);
-  V.resize(loop);
-  m.resize(loop);
-  h.resize(loop);
-  n.resize(loop);
-
-  for (long long k = 0; k < loop; k++) {
-    t[k] = k * dt;
-    V[k] = 0;
-    m[k] = 0;
-    h[k] = 0;
-    n[k] = 0;
-  }
-  V[0] = v;
-  m[0] = mi;
-  h[0] = hi;
-  n[0] = ni;
+  t = 0.0;
+  V = v;
+  m = mi;
+  h = hi;
+  n = ni;
+  t1 = 0.0;
+  V1 = 0.0;
+  m1 = 0.0;
+  h1 = 0.0;
+  n1 = 0.0;
 }
 
 HH::~HH() {
@@ -47,7 +40,7 @@ HH::~HH() {
 }
 
 double HH::DynamicI(double t, double I) const {
-  return I*std::sin(t);
+  // return I*std::sin(t);
   if (t < 50) return I;
   else
     return 0.0;
@@ -58,25 +51,55 @@ void HH::Append(HH* next_hh) {
   next_hh->prev.push_back(this);
 }
 
+void HH::Advance() {
+  ++i;
+  V = V1;
+  m = m1;
+  h = h1;
+  n = n1;
+  t = dt * i;
+}
+
 void HH::Advance_Euler() {
-  // V[i] = v;
-  // m[i] = mi;
-  // h[i] = hi;
-  // n[i] = ni;
-  V[i+1] = V[i] + dt*(
-      gNa*m[i]*m[i]*m[i]*h[i]*(eNa-(V[i]+65))
-      + gK*n[i]*n[i]*n[i]*n[i]*(eK-(V[i]+65))
-      + gL*(eL-(V[i]+65))
+  V1 = V + dt*(
+      gNa*m*m*m*h*(eNa-(V+65))
+      + gK*n*n*n*n*(eK-(V+65))
+      + gL*(eL-(V+65))
       + DynamicI(i*dt, I)
       );
-  m[i+1] = m[i] + dt*(AlphaM(V[i])*(1-m[i])-BetaM(V[i])*m[i]);
-  h[i+1] = h[i] + dt*(AlphaH(V[i])*(1-h[i])-BetaH(V[i])*h[i]);
-  n[i+1] = n[i] + dt*(AlphaN(V[i])*(1-n[i])-BetaN(V[i])*n[i]);
+  m1 = m + dt*(AlphaM(V)*(1-m)-BetaM(V)*m);
+  h1 = h + dt*(AlphaH(V)*(1-h)-BetaH(V)*h);
+  n1 = n + dt*(AlphaN(V)*(1-n)-BetaN(V)*n);
   for (auto hh : next) {
-    V[i+1] += dt * (hh->V[hh->i] - V[i]) * hh->g;
+    V1 += dt * (hh->V - V) * hh->g;
   }
   for (auto hh : prev) {
-    V[i+1] -= dt * (V[i] - hh->V[hh->i]) * hh->g;
+    V1 -= dt * (V - hh->V) * hh->g;
   }
   // printf("%.06f, %.06f, %.06f, %.06f\n", V[i+1], m[i+1], h[i+1], n[i+1]);
 }
+
+void HH::Advance_Crank_Nicolson(int iter_num) {
+  for (int it = 0; it < iter_num; ++it) {
+    V1 = V + 0.5*dt*(
+        gNa*m1*m1*m1*h1*(eNa-(V1+65))
+        + gK*n1*n1*n1*n1*(eK-(V1+65)) 
+        + gL*(eL-(V1+65))
+        + DynamicI((i+1)*dt, I)
+        + gNa*m*m*m*h*(eNa-(V+65))
+        + gK*n*n*n*n*(eK-(V+65))
+        + gL*(eL-(V+65))
+        + DynamicI(i*dt, I)
+        );
+    m1 = m + 0.5*dt*(AlphaM(V1)*(1-m1)-BetaM(V1)*m1 + AlphaM(V)*(1-m)-BetaM(V)*m);
+    h1 = h + 0.5*dt*(AlphaH(V1)*(1-h1)-BetaH(V1)*h1 + AlphaH(V)*(1-h)-BetaH(V)*h);
+    n1 = n + 0.5*dt*(AlphaN(V1)*(1-n1)-BetaN(V1)*n1 + AlphaN(V)*(1-n)-BetaN(V)*n);
+    for (auto hh : next) {
+      V1 += 0.5 * dt * (hh->V1 - V1 + hh->V - V) * hh->g;
+    }
+    for (auto hh : prev) {
+      V1 -= 0.5 * dt * (V1 - hh->V1 + V - hh->V) * hh->g;
+    }
+  }
+}
+

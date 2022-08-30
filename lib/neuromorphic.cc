@@ -53,7 +53,7 @@ void Neuromorphic::StringSplit(const std::string& s, char delim, std::vector<std
   }
 }
 
-void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron) {
+void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int duplicate) {
   std::ifstream ifs(filename);
   std::vector<std::vector<std::string>> content;
   for (std::string line; std::getline(ifs, line);) {
@@ -66,19 +66,27 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron) {
     content.push_back(ss);
   }
   ifs.close();
+  std::cout << "neuron size: " << content.size() << " compartments" << std::endl;
+  long long neuron_size = content.size() * duplicate;
 
-  neuron->resize(content.size());
-  for (int i = 0; i < (int)content.size(); ++i) {
+  neuron->resize(neuron_size);
+  for (long long i = 0; i < neuron_size; ++i) {
     (*neuron)[i] = new HH();
   }
-  std::cout << "neuron size: " << neuron->size() << " compartments" << std::endl;
+  std::cout << "duplicated neuron size: " << duplicate << " duplicates, " << neuron->size() << " compartments" << std::endl;
 
   for (auto it = content.begin(); it != content.end(); ++it) {
     // read one line
     int index = atoi((*it)[0].c_str());
     int parent = atoi((*it)[6].c_str());
     if (parent == -1) continue;
-    (*neuron)[parent - 1]->Append((*neuron)[index - 1]);
+    for (int i = 0; i < duplicate; ++i) {
+      (*neuron)[i * content.size() + parent - 1]->Append((*neuron)[i * content.size() + index - 1]);
+    }
+  }
+  // connect axon end to next soma
+  for (int i = 1; i < duplicate; ++i) {
+    (*neuron)[i*content.size() + content.size() - 1]->Append((*neuron)[i * content.size()]);
   }
 }
 

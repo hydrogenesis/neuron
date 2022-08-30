@@ -22,11 +22,16 @@ public:
   double gL;
   double eL;
   double g;
-  vector<double> t;
-  vector<double> V;
-  vector<double> m;
-  vector<double> h;
-  vector<double> n;
+  double t;
+  double V;
+  double m;
+  double h;
+  double n;
+  double t1;
+  double V1;
+  double m1;
+  double h1;
+  double n1;
   vector<HH*> prev;
   vector<HH*> next;
 
@@ -37,8 +42,10 @@ public:
 
   double DynamicI(double t, double I) const;
   void Append(HH* next_hh);
-  inline void Advance() { ++i; }
+  void Advance();
+  inline void Record(std::vector<double>* t_rec, std::vector<double>* V_rec) { t_rec->push_back(t); V_rec->push_back(V); }
   void Advance_Euler();
+  void Advance_Crank_Nicolson(int iter_num);
   inline double AlphaM(double V) const {
     return (2.5-0.1*(V+65)) / (std::exp(2.5-0.1*(V+65)) - 1);
   }
