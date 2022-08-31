@@ -2,8 +2,8 @@
 #include <cmath>
 #include <stdio.h>
 
-HH::HH():HH(0.0, 200, 0.001, -65, 0.5, 0.06, 0.5,
-     120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 3) {
+HH::HH():HH(0.0, 500, 0.025, -65, 0.5, 0.06, 0.5,
+     120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 6) {
 }
 
 HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
@@ -41,9 +41,12 @@ HH::~HH() {
 
 double HH::DynamicI(double t, double I) const {
   // return I*std::sin(t);
-  if (t < 50) return I;
+  if ((int)(t / 100) % 2 == 0) return I;
   else
     return 0.0;
+  // if (t < 50.0) return I;
+  // else
+  //   return 0.0;
 }
 
 void HH::Append(HH* next_hh) {
@@ -76,7 +79,15 @@ void HH::Advance_Euler() {
   for (auto hh : prev) {
     V1 -= dt * (V - hh->V) * hh->g;
   }
-  // printf("%.06f, %.06f, %.06f, %.06f\n", V[i+1], m[i+1], h[i+1], n[i+1]);
+  if (m1 > 1) m1 = 0.999;
+  if (m1 <= 0) m1 = 0.001;
+  if (n1 > 1) n1 = 0.999;
+  if (n1 <= 0) n1 = 0.001;
+  if (h1 > 1) h1 = 0.999;
+  if (h1 <= 0) h1 = 0.001;
+  if (V1 > 200) V1 = 200;
+  if (V1 <= -200) V1 = -200;
+  // printf("%.06f, %.06f, %.06f, %.06f\n", V1, m1, h1, n1);
 }
 
 void HH::Advance_Crank_Nicolson(int iter_num) {

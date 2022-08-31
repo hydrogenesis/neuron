@@ -13,7 +13,7 @@
 #include "boost/lockfree/queue.hpp"
 
 #define CHUNK_SIZE 1000
-#define DUPLICATE 100
+#define DUPLICATE 1
 
 void worker(int id, int total_threads, std::vector<HH*>* neuron, std::mutex* m, std::condition_variable* cv, int* signal, std::atomic<int>* p) {
   long long total_neurons = neuron->size();
@@ -91,9 +91,11 @@ int main(int argc, char** argv) {
     num_threads = atoi(argv[1]);
     // swc setup
     Neuromorphic::LoadSwc(argv[2], &neuron, DUPLICATE);
-    neuron[0]->I = 100.0;
-    neuron[136]->I = 100.0;
-    neuron[140]->I = 100.0;
+    // neuron[0]->I = 100.0;
+    // neuron[136]->I = 100.0;
+    // neuron[200]->I = 100.0;
+    // neuron[12221]->I = 100.0;
+    Neuromorphic::RandomSynapse(&neuron, 0.001, 100.0);
   }
   long long loop = neuron[0]->loop;
   vector<double> t1, t2, V1, V2;
@@ -140,7 +142,6 @@ int main(int argc, char** argv) {
         queue.push(chunk_id);
       }
       while (p != chunk_num) {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
         usleep(1);
       }
       signal = 2;
@@ -149,17 +150,16 @@ int main(int argc, char** argv) {
         queue.push(chunk_id);
       }
       while (p != chunk_num) {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
         usleep(1);
       }
       // join all threads
       // while (p != num_threads) {
-      //   // std::this_thread::sleep_for(std::chrono::milliseconds(1));
       //   usleep(1);
       // }
     }
     neuron[0]->Record(&t1, &V1);
     neuron[neuron.size() - 1]->Record(&t2, &V2);
+    // neuron[12222]->Record(&t2, &V2);
     // if (num_threads > 0) {
     //   p = 0;
     //   signal = 0;

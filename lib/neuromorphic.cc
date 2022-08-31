@@ -5,6 +5,9 @@
 #include <string>
 #include <cstring>
 #include <sstream>
+#include <stdio.h>      /* printf, scanf, puts, NULL */
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
 
 // trim from start (in place)
 static inline void ltrim(std::string &s) {
@@ -86,7 +89,21 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int d
   }
   // connect axon end to next soma
   for (int i = 1; i < duplicate; ++i) {
-    (*neuron)[i*content.size() + content.size() - 1]->Append((*neuron)[i * content.size()]);
+    (*neuron)[(i-1)*content.size() + content.size() - 1]->Append((*neuron)[i * content.size()]);
   }
 }
 
+void Neuromorphic::RandomSynapse(std::vector<HH*>* neuron, double factor, double I) {
+  long long neuron_num = neuron->size();
+  long long seed = time(NULL);
+  // seed = 1661933470;
+  printf("seed = %lld\n", seed);
+  srand(seed);
+  for (long long i = 0; i < neuron_num; ++i) {
+    double r = (rand() % 1000) / 1000.0;
+    if (r < factor) {
+      (*neuron)[i]->I = I;
+      // printf("r=%f, neuron %lld has synapse of %f.\n", r, i, I);
+    }
+  }
+}
