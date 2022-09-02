@@ -91,11 +91,13 @@ int main(int argc, char** argv) {
     num_threads = atoi(argv[1]);
     // swc setup
     Neuromorphic::LoadSwc(argv[2], &neuron, DUPLICATE);
-    // neuron[0]->I = 100.0;
+    neuron[1]->I = 100;
+    // neuron[1]->gL = neuron[1]->area * 0.001;
+    // neuron[1]->eL = 0;
     // neuron[136]->I = 100.0;
     // neuron[200]->I = 100.0;
     // neuron[12221]->I = 100.0;
-    Neuromorphic::RandomSynapse(&neuron, 0.001, 100.0);
+    // Neuromorphic::RandomSynapse(&neuron, 1, 100.0);
   }
   long long loop = neuron[0]->loop;
   vector<double> t1, t2, V1, V2;

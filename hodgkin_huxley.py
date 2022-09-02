@@ -7,6 +7,10 @@ def zeros(n):
     return [0 for e in ret]
 
 def dynamicI(t, I):
+    if 1 < t and t < 1.1:
+        return I
+    else:
+        return 0
     if t < 100:
         return I
     elif t > 120 and t < 140:
@@ -69,4 +73,4 @@ def betaN(V):
     return 0.125*math.exp(-(V+65)/80)
 
 if __name__ == '__main__':
-    hh(10, 200, -65, 0.5, 0.06, 0.5, True)
+    hh(0.5, 200, -65, 0.5, 0.06, 0.5, True)

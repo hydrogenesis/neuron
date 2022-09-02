@@ -81,10 +81,31 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int d
   for (auto it = content.begin(); it != content.end(); ++it) {
     // read one line
     int index = atoi((*it)[0].c_str());
+    int type = atoi((*it)[1].c_str());
+    float x = atof((*it)[2].c_str());
+    float y = atof((*it)[3].c_str());
+    float z = atof((*it)[4].c_str());
+    float radius = atof((*it)[5].c_str());
     int parent = atoi((*it)[6].c_str());
-    if (parent == -1) continue;
     for (int i = 0; i < duplicate; ++i) {
-      (*neuron)[i * content.size() + parent - 1]->Append((*neuron)[i * content.size() + index - 1]);
+      HH* compartment = (*neuron)[i * content.size() + index - 1];
+      compartment->x = x;
+      compartment->y = y;
+      compartment->z = z;
+      compartment->type = type;
+      compartment->radius = radius;
+      if (parent == -1) {
+        compartment->area = 4 * 3.1415927 * radius * radius;
+      } else {
+        HH* p = (*neuron)[i * content.size() + parent - 1];  // parent
+        double length = std::sqrt((p->x - x)*(p->x - x) + (p->y - y)*(p->y - y) + (p->z - z)*(p->z - z));
+        compartment->area = length * 2 * 3.1415927 * radius;
+        p->Append(compartment);
+      }
+      // std::cout << "area: " << compartment->area << std::endl;
+      compartment->gNa = 0.12 * compartment->area;
+      compartment->gK = 0.036 * compartment->area;
+      compartment->gL = 0.0003 * compartment->area;
     }
   }
   // connect axon end to next soma
@@ -100,10 +121,12 @@ void Neuromorphic::RandomSynapse(std::vector<HH*>* neuron, double factor, double
   printf("seed = %lld\n", seed);
   srand(seed);
   for (long long i = 0; i < neuron_num; ++i) {
+    int type = (*neuron)[i]->type;
+    if (type != 1 && type != 2) continue;
     double r = (rand() % 1000) / 1000.0;
     if (r < factor) {
       (*neuron)[i]->I = I;
-      // printf("r=%f, neuron %lld has synapse of %f.\n", r, i, I);
+      // printf("r=%f, neuron %lld with type %d has synapse of %f.\n", r, i, type, I);
     }
   }
 }

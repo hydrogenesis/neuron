@@ -32,6 +32,10 @@ public:
   double m1;
   double h1;
   double n1;
+  double x, y, z;
+  int type;
+  double radius;
+  double area;
   vector<HH*> prev;
   vector<HH*> next;
 
@@ -47,7 +51,12 @@ public:
   void Advance_Euler();
   void Advance_Crank_Nicolson(int iter_num);
   inline double AlphaM(double V) const {
-    return (2.5-0.1*(V+65)) / (std::exp(2.5-0.1*(V+65)) - 1);
+    double x = 2.5-0.1*(V+65);
+    if (std::abs(x) > 1e-6) {
+      return (2.5-0.1*(V+65)) / (std::exp(x) - 1);
+    } else {
+      return (2.5-0.1*(V+65)) / (0.5*x - 1);
+    }
   }
   inline double BetaM(double V) const {
     return 4.0*std::exp(-(V+65)/18);
@@ -59,7 +68,12 @@ public:
     return 1.0/(std::exp(3.0-0.1*(V+65))+1);
   }
   inline double AlphaN(double V) const {
-    return (0.1-0.01*(V+65)) / (std::exp(1-0.1*(V+65)) -1);
+    double x = 1-0.1*(V+65);
+    if (std::abs(x) > 1e-6) {
+      return (0.1-0.01*(V+65)) / (std::exp(x)-1);
+    } else {
+      return (0.1-0.01*(V+65)) / (0.5*x-1);
+    }
   }
   inline double BetaN(double V) const {
     return 0.125*std::exp(-(V+65)/80);
