@@ -106,6 +106,8 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int d
       compartment->gNa = 0.12 * compartment->area;
       compartment->gK = 0.036 * compartment->area;
       compartment->gL = 0.0003 * compartment->area;
+      // compartment->g = compartment->area / 2.0;
+      compartment->g = 80;
     }
   }
   // connect axon end to next soma

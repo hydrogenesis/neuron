@@ -27,11 +27,17 @@ public:
   double m;
   double h;
   double n;
-  double t1;
   double V1;
   double m1;
   double h1;
   double n1;
+  long long i_backup;
+  double dt_backup;
+  double t_backup;
+  double V_backup;
+  double m_backup;
+  double h_backup;
+  double n_backup;
   double x, y, z;
   int type;
   double radius;
@@ -44,19 +50,28 @@ public:
       double gNa, double eNa, double gK, double eK, double gL, double eL, double g);
   ~HH();
 
+  void Backup();
+  void Restore();
   double DynamicI(double t, double I) const;
   void Append(HH* next_hh);
   void Advance();
   inline void Record(std::vector<double>* t_rec, std::vector<double>* V_rec) { t_rec->push_back(t); V_rec->push_back(V); }
   void Advance_Euler();
   void Advance_Crank_Nicolson(int iter_num);
+  inline double Vtrap(double x, double y) const {
+    if (std::abs(x/y) < 1e-6)
+      return y*(1 - x/y/2.0);
+    else
+      return x/(std::exp(x/y) - 1);
+  }
   inline double AlphaM(double V) const {
-    double x = 2.5-0.1*(V+65);
-    if (std::abs(x) > 1e-6) {
-      return (2.5-0.1*(V+65)) / (std::exp(x) - 1);
-    } else {
-      return (2.5-0.1*(V+65)) / (0.5*x - 1);
-    }
+    return .1 * Vtrap(-(V+40),10);
+    // double x = 2.5-0.1*(V+65);
+    // if (std::abs(x) > 1e-6) {
+    //   return (2.5-0.1*(V+65)) / (std::exp(x) - 1);
+    // } else {
+    //   return (2.5-0.1*(V+65)) / (0.5*x - 1);
+    // }
   }
   inline double BetaM(double V) const {
     return 4.0*std::exp(-(V+65)/18);
@@ -68,14 +83,16 @@ public:
     return 1.0/(std::exp(3.0-0.1*(V+65))+1);
   }
   inline double AlphaN(double V) const {
-    double x = 1-0.1*(V+65);
-    if (std::abs(x) > 1e-6) {
-      return (0.1-0.01*(V+65)) / (std::exp(x)-1);
-    } else {
-      return (0.1-0.01*(V+65)) / (0.5*x-1);
-    }
+    return .01*Vtrap(-(V+55),10);
+    // double x = 1-0.1*(V+65);
+    // if (std::abs(x) > 1e-6) {
+    //   return (0.1-0.01*(V+65)) / (std::exp(x)-1);
+    // } else {
+    //   return (0.1-0.01*(V+65)) / (0.5*x-1);
+    // }
   }
   inline double BetaN(double V) const {
     return 0.125*std::exp(-(V+65)/80);
   }
+  void PrintDebugInfo() const;
 };  // class HH
