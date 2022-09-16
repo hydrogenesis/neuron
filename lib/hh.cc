@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 // HH::HH():HH(0.0, 25, 0.025, -65, 0.5, 0.06, 0.5,
+CUDA_HOSTDEV
 HH::HH():HH(0.0, 100, 0.0125, -65, 0.05293248525724958, 0.5961207535084603, 0.3176769140606974,
      120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 6) {
 }
@@ -35,6 +36,7 @@ HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double
   n1 = 0.0;
 }
 
+CUDA_HOSTDEV
 HH::~HH() {
 
 }
@@ -98,6 +100,7 @@ void HH::Advance_Euler() {
     PrintDebugInfo();
   }
 }
+CUDA_HOSTDEV
 void HH::PrintDebugInfo() const {
   printf("V : %.06f, %.06f, %.06f, %.06f\n", V, m, h, n);
   printf("V1: %.06f, %.06f, %.06f, %.06f\n", V1, m1, h1, n1);

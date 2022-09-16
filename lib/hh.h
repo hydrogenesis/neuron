@@ -1,6 +1,11 @@
 #pragma once
 #include <vector>
 #include <cmath>
+#ifdef __CUDACC__
+#define CUDA_HOSTDEV __host__ __device__
+#else
+#define CUDA_HOSTDEV
+#endif
 
 using std::vector;
 
@@ -45,10 +50,10 @@ public:
   vector<HH*> prev;
   vector<HH*> next;
 
-  HH();
+  CUDA_HOSTDEV HH();
   HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
       double gNa, double eNa, double gK, double eK, double gL, double eL, double g);
-  ~HH();
+  CUDA_HOSTDEV ~HH();
 
   void Backup();
   void Restore();
@@ -94,5 +99,5 @@ public:
   inline double BetaN(double V) const {
     return 0.125*std::exp(-(V+65)/80);
   }
-  void PrintDebugInfo() const;
+  CUDA_HOSTDEV void PrintDebugInfo() const;
 };  // class HH

@@ -10,6 +10,7 @@ cc_binary(
     ],  
     copts = [
         "-fpic",
+        "-fopenmp",
     ],
-    linkopts = ["-lpthread"],
+    linkopts = ["-lpthread", "-fopenmp"],
 )

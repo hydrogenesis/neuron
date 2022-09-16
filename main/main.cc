@@ -8,6 +8,7 @@
 #include <chrono>
 #include <unistd.h>
 
+#include <omp.h>
 #include "lib/hh.h"
 #include "lib/neuromorphic.h"
 #include "boost/lockfree/queue.hpp"
@@ -137,6 +138,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
       while (*p != chunk_num) {
         usleep(1);
       }
+
       // Advance_Crank_Nicolson
       *signal = 1;
       *p = 0;
@@ -146,6 +148,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
       while (*p != chunk_num) {
         usleep(1);
       }
+
       // Advance
       *signal = 2;
       *p = 0;
@@ -240,6 +243,13 @@ int main(int argc, char** argv) {
       }
     } else {
       overflow = false;
+      /*
+      omp_set_dynamic(0);     // Explicitly disable dynamic teams
+      omp_set_num_threads(95); // Use threads for all consecutive parallel regions
+      #pragma omp parallel for
+      for (int i = 0; i < (int)neuron.size(); ++i) {
+        neuron[i]->Advance_Euler();
+      }*/
       signal = 0;
       p = 0;
       for (long long chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
