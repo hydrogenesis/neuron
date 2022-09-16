@@ -56,21 +56,108 @@ void Neuromorphic::StringSplit(const std::string& s, char delim, std::vector<std
   }
 }
 
-void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int duplicate) {
+void LoadFile(const char* filename, std::vector<std::vector<std::string>>* content) {
   std::ifstream ifs(filename);
-  std::vector<std::vector<std::string>> content;
   for (std::string line; std::getline(ifs, line);) {
     if (line.size() == 0) continue;
     if (line[0] == '#') continue;
     std::vector<std::string> ss;
-    StringSplit(line, ' ', &ss);
+    Neuromorphic::StringSplit(line, ' ', &ss);
     // std::cout << "ss size: " << ss.size() << std::endl;
     if (ss.size() != 7) continue;
-    content.push_back(ss);
+    content->push_back(ss);
   }
   ifs.close();
-  std::cout << "neuron size: " << content.size() << " compartments" << std::endl;
-  long long neuron_size = content.size() * duplicate;
+}
+
+struct Point {
+  float x;
+  float y;
+  float z;
+};
+long long Neuromorphic::GetNumExpandedNeurons(const char* filename, int duplicate, double dx) {
+  std::vector<std::vector<std::string>> content;
+  LoadFile(filename, &content);
+  std::vector<Point> mapping(content.size() * duplicate);
+  long long total_num = 0;
+  for (auto it = content.begin(); it != content.end(); ++it) {
+    // read one line
+    int index = atoi((*it)[0].c_str());
+    int type = atoi((*it)[1].c_str());
+    float x = atof((*it)[2].c_str());
+    float y = atof((*it)[3].c_str());
+    float z = atof((*it)[4].c_str());
+    // float radius = atof((*it)[5].c_str());
+    int parent = atoi((*it)[6].c_str());
+    for (int i = 0; i < duplicate; ++i) {
+      int the_index = i * content.size() + index - 1;
+      mapping[the_index].x = x;
+      mapping[the_index].y = y;
+      mapping[the_index].z = z;
+      if (parent == -1 || type == 1) {  // soma as sphere
+        total_num++;
+      } else {  // dendrite or axon as cylinder
+        int parent_index = i * content.size() + parent - 1;  // parent
+        auto p = mapping[parent_index];
+        double length = std::sqrt((p.x - x)*(p.x - x) + (p.y - y)*(p.y - y) + (p.z - z)*(p.z - z));
+        int num_compartments = std::ceil(length / dx);
+        total_num += num_compartments;
+      }
+    }
+  }
+  return total_num;
+}
+
+void InsertCylinder(int the_index, int parent_index,
+    double x, double y, double z, int type, double radius,
+    std::vector<long long>& heads,
+    std::vector<long long>& tails,
+    long long* current_neuron,
+    std::vector<HH*>* neuron,
+    double dx) {
+  HH* p = (*neuron)[heads[parent_index]];  // parent
+  double length = std::sqrt((p->x - x)*(p->x - x) + (p->y - y)*(p->y - y) + (p->z - z)*(p->z - z));
+  int n = int(std::ceil(length / dx));
+  // first compartment
+  HH* compartment = (*neuron)[*current_neuron];
+  heads[the_index] = *current_neuron;
+  double compartment_length = dx;
+  if (length < dx) {
+    // if the head is the tail
+    compartment_length = length;
+    compartment_length = dx;
+    tails[the_index] = *current_neuron;
+  }
+  (*current_neuron)++;
+  compartment->SetParams(x, y, z, type, compartment_length, radius);
+  if (parent_index != -1) {
+    (*neuron)[tails[parent_index]]->Append(compartment);
+  }
+  for (int j = 1; j < n; ++j) {
+    // following compartments
+    compartment_length = dx;
+    if (length < (j + 1) * dx) {
+      compartment_length = length - j * dx;
+      compartment_length = dx;
+    }
+    compartment = (*neuron)[*current_neuron];
+    // locate tail
+    if (j == n - 1) tails[the_index] = *current_neuron;
+    compartment->SetParams(x, y, z, type, compartment_length, radius);
+    (*neuron)[*current_neuron - 1]->Append(compartment);
+    (*current_neuron)++;
+  }
+}
+
+void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int duplicate, double dx) {
+  std::vector<std::vector<std::string>> content;
+  LoadFile(filename, &content);
+  int original_neuron_size = content.size() * duplicate;
+  std::vector<long long> heads(original_neuron_size);
+  std::vector<long long> tails(original_neuron_size);
+  long long current_neuron = 0;
+  long long neuron_size = Neuromorphic::GetNumExpandedNeurons(filename, duplicate, dx);
+  std::cout << "neuron size: " << content.size() << " compartments, expanded: " << neuron_size << std::endl;
 
   neuron->resize(neuron_size);
   for (long long i = 0; i < neuron_size; ++i) {
@@ -88,32 +175,55 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int d
     float radius = atof((*it)[5].c_str());
     int parent = atoi((*it)[6].c_str());
     for (int i = 0; i < duplicate; ++i) {
-      HH* compartment = (*neuron)[i * content.size() + index - 1];
-      compartment->x = x;
-      compartment->y = y;
-      compartment->z = z;
-      compartment->type = type;
-      compartment->radius = radius;
-      if (parent == -1) {
-        compartment->area = 4 * 3.1415927 * radius * radius;
+      int the_index = i * content.size() + index - 1;
+      if (parent == -1) {  // first compartment as sphere
+        if (type == 1) {
+          // first compartment is sphere
+          HH* compartment = (*neuron)[current_neuron];
+          heads[the_index] = current_neuron;
+          tails[the_index] = current_neuron;
+          current_neuron++;
+          compartment->SetParams(x, y, z, type, radius, radius);
+        } else {
+          // first compartment is cylinder
+          std::cout << "ERROR!" << std::endl;
+          // InsertCylinder(the_index, -1,
+          //     x, y, z, type, radius,
+          //     heads,
+          //     tails,
+          //     &current_neuron,
+          //     neuron,
+          //     dx);
+        }
       } else {
-        HH* p = (*neuron)[i * content.size() + parent - 1];  // parent
-        double length = std::sqrt((p->x - x)*(p->x - x) + (p->y - y)*(p->y - y) + (p->z - z)*(p->z - z));
-        compartment->area = length * 2 * 3.1415927 * radius;
-        p->Append(compartment);
+        if (type == 1) {
+          // soma as sphere
+          HH* compartment = (*neuron)[current_neuron];
+          heads[the_index] = current_neuron;
+          tails[the_index] = current_neuron;
+          int parent_index = i * content.size() + parent - 1;
+          (*neuron)[tails[parent_index]]->Append(compartment);
+          compartment->SetParams(x, y, z, type, radius, radius);
+          current_neuron++;
+        } else {  // dendrite or axon as cylinder
+          int parent_index = i * content.size() + parent - 1;
+          InsertCylinder(the_index, parent_index,
+              x, y, z, type, radius,
+              heads,
+              tails,
+              &current_neuron,
+              neuron,
+              dx);
+        }
       }
       // std::cout << "area: " << compartment->area << std::endl;
-      compartment->gNa = 0.12 * compartment->area;
-      compartment->gK = 0.036 * compartment->area;
-      compartment->gL = 0.0003 * compartment->area;
       // compartment->g = compartment->area / 2.0;
-      compartment->g = 80;
     }
   }
   // connect axon end to next soma
-  for (int i = 1; i < duplicate; ++i) {
-    (*neuron)[(i-1)*content.size() + content.size() - 1]->Append((*neuron)[i * content.size()]);
-  }
+  // for (int i = 1; i < duplicate; ++i) {
+  //   (*neuron)[(i-1)*content.size() + content.size() - 1]->Append((*neuron)[i * content.size()]);
+  // }
 }
 
 void Neuromorphic::RandomSynapse(std::vector<HH*>* neuron, double factor, double I) {

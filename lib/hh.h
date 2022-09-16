@@ -27,6 +27,7 @@ public:
   double gL;
   double eL;
   double g;
+  double C;
   double t;
   double V;
   double m;
@@ -47,6 +48,7 @@ public:
   int type;
   double radius;
   double area;
+  double length;
   vector<HH*> prev;
   vector<HH*> next;
 
@@ -59,6 +61,7 @@ public:
   void Restore();
   double DynamicI(double t, double I) const;
   void Append(HH* next_hh);
+  void SetParams(double x, double y, double z, int type, double length, double radius);
   void Advance();
   inline void Record(std::vector<double>* t_rec, std::vector<double>* V_rec) { t_rec->push_back(t); V_rec->push_back(V); }
   void Advance_Euler();

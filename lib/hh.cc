@@ -1,10 +1,11 @@
 #include "hh.h"
+#include <iostream>
 #include <cmath>
 #include <stdio.h>
 
 // HH::HH():HH(0.0, 25, 0.025, -65, 0.5, 0.06, 0.5,
 CUDA_HOSTDEV
-HH::HH():HH(0.0, 100, 0.0125, -65, 0.05293248525724958, 0.5961207535084603, 0.3176769140606974,
+HH::HH():HH(0.0, 100, 0.01, -65, 0.05293248525724958, 0.5961207535084603, 0.3176769140606974,
      120.0, 115.0, 36.0, -12.0, 0.3, 10.6, 6) {
 }
 
@@ -41,9 +42,29 @@ HH::~HH() {
 
 }
 
+void HH::SetParams(double x, double y, double z, int type, double length, double radius) {
+  this->x = x;
+  this->y = y;
+  this->z = z;
+  this->type = type;
+  this->length = length;
+  this->radius = radius;
+  if (type == 1) {
+    this->area = 4 * 3.1415927 * radius * radius;
+  } else {
+    this->area = length * 2 * 3.1415927 * radius;
+  }
+  this->gNa = 0.12 * this->area;
+  this->gK = 0.036 * this->area;
+  this->gL = 0.0003 * this->area;
+  this->C = 0.001 * this->area;
+  this->g = 0.001 * 3.1415926 * this->radius * this->radius / this->length;
+  std::cout << "g: " << g << ", C: " << C << std::endl;
+}
+
 double HH::DynamicI(double t, double I) const {
   // return I*std::sin(t);
-  if (5 <= t && t < 6) return I;
+  if (1 <= t && t < 80) return I;
   // else if (50 <= t && t < 51) return I;
   else
     return 0;
@@ -70,7 +91,7 @@ void HH::Advance() {
 }
 
 void HH::Advance_Euler() {
-  V1 = V + dt*(
+  V1 = V + dt/C*(
       gNa*m*m*m*h*(eNa-(V+65))
       + gK*n*n*n*n*(eK-(V+65))
       + gL*(eL-(V+65))
@@ -81,11 +102,11 @@ void HH::Advance_Euler() {
   n1 = n + dt*(AlphaN(V)*(1-n)-BetaN(V)*n);
   for (auto hh : next) {
     double avgg = 2/(1/g + 1/hh->g);
-    V1 += dt * (hh->V - V) * avgg;
+    V1 += dt/C * (hh->V - V) * avgg;
   }
   for (auto hh : prev) {
     double avgg = 2/(1/g + 1/hh->g);
-    V1 -= dt * (V - hh->V) * avgg;
+    V1 -= dt/C * (V - hh->V) * avgg;
   }
   if (m1 > 1) m1 = 0.999;
   if (m1 <= 0) m1 = 0.001;
@@ -119,27 +140,39 @@ void HH::PrintDebugInfo() const {
 }
 
 void HH::Advance_Crank_Nicolson(int iter_num) {
+  double last_v = V1;
+  double theta = 1;
+  bool threshold_reached = false;
   for (int it = 0; it < iter_num; ++it) {
-    V1 = V + 0.5*dt*(
-        gNa*m1*m1*m1*h1*(eNa-(V1+65))
+    V1 = V + dt/C*(
+        theta*(gNa*m1*m1*m1*h1*(eNa-(V1+65))
         + gK*n1*n1*n1*n1*(eK-(V1+65)) 
         + gL*(eL-(V1+65))
-        + DynamicI((i+1)*dt, I)
-        + gNa*m*m*m*h*(eNa-(V+65))
+        + DynamicI((i+1)*dt, I))
+        + (1-theta)*(gNa*m*m*m*h*(eNa-(V+65))
         + gK*n*n*n*n*(eK-(V+65))
         + gL*(eL-(V+65))
-        + DynamicI(i*dt, I)
+        + DynamicI(i*dt, I))
         );
-    m1 = m + 0.5*dt*(AlphaM(V1)*(1-m1)-BetaM(V1)*m1 + AlphaM(V)*(1-m)-BetaM(V)*m);
-    h1 = h + 0.5*dt*(AlphaH(V1)*(1-h1)-BetaH(V1)*h1 + AlphaH(V)*(1-h)-BetaH(V)*h);
-    n1 = n + 0.5*dt*(AlphaN(V1)*(1-n1)-BetaN(V1)*n1 + AlphaN(V)*(1-n)-BetaN(V)*n);
+    m1 = m + dt*(theta*(AlphaM(V1)*(1-m1)-BetaM(V1)*m1) + (1-theta)*(AlphaM(V)*(1-m)-BetaM(V)*m));
+    h1 = h + dt*(theta*(AlphaH(V1)*(1-h1)-BetaH(V1)*h1) + (1-theta)*(AlphaH(V)*(1-h)-BetaH(V)*h));
+    n1 = n + dt*(theta*(AlphaN(V1)*(1-n1)-BetaN(V1)*n1) + (1-theta)*(AlphaN(V)*(1-n)-BetaN(V)*n));
     for (auto hh : next) {
-      V1 += 0.5 * dt * (hh->V1 - V1 + hh->V - V) * hh->g;
+      V1 += dt/C * (theta*(hh->V1 - V1) + (1-theta)*(hh->V - V)) * hh->g;
     }
     for (auto hh : prev) {
-      V1 -= 0.5 * dt * (V1 - hh->V1 + V - hh->V) * hh->g;
+      V1 -= dt/C * (theta*(V1 - hh->V1) + (1-theta)*(V - hh->V)) * hh->g;
     }
+    if ((V1 - last_v) < 1e-8) {
+      threshold_reached = true;
+      break;
+    }
+    last_v = V1;
   }
+  // if (threshold_reached)
+  //   printf("threshold reached\n");
+  // else
+  //   printf("iteration reached\n");
 }
 
 void HH::Backup() {

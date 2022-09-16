@@ -58,12 +58,20 @@ void worker_queue(int id, int total_threads, std::vector<HH*>* neuron, boost::lo
     if (*signal == 0) {
       for (long long i = chunk_id * chunk_size; i < (chunk_id + 1) * chunk_size && i < total_neurons; ++i) {
         (*neuron)[i]->Advance_Euler();
-        if (std::abs(((*neuron)[i]->V1 - (*neuron)[i]->V)) > 1000 || std::isnan((*neuron)[i]->V1)) *overflow = true;
+        if ((std::abs(((*neuron)[i]->V1 - (*neuron)[i]->V)) > 100.0) || std::isnan((*neuron)[i]->V1)) {
+          printf("overflowed1! %.02f\n", ((*neuron)[i]->V1 - (*neuron)[i]->V));
+          std::cout << "overflowed2! " << ((*neuron)[i]->V1 - (*neuron)[i]->V) << std::endl;
+          *overflow = true;
+        }
       }
     } else if (*signal == 1) {
       for (long long i = chunk_id * chunk_size; i < (chunk_id + 1) * chunk_size && i < total_neurons; ++i) {
-        (*neuron)[i]->Advance_Crank_Nicolson(3);
-        if (std::abs(((*neuron)[i]->V1 - (*neuron)[i]->V)) > 100 || std::isnan((*neuron)[i]->V1)) *overflow = true;
+        (*neuron)[i]->Advance_Crank_Nicolson(30);
+        if ((std::abs(((*neuron)[i]->V1 - (*neuron)[i]->V)) > 100.0) || std::isnan((*neuron)[i]->V1)) {
+          printf("overflowed3! %.02f\n", ((*neuron)[i]->V1 - (*neuron)[i]->V));
+          std::cout << "overflowed4! " << ((*neuron)[i]->V1 - (*neuron)[i]->V) << " " << (*neuron)[i]->V << std::endl;
+          *overflow = true;
+        }
       }
     } else if (*signal == 2) {
       for (long long i = chunk_id * chunk_size; i < (chunk_id + 1) * chunk_size && i < total_neurons; ++i) {
@@ -102,7 +110,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
   printf("Back up complete.\n");
   *overflow = true;
   int cycle = 1;
-  while (*overflow == true && cycle < 100) {
+  while (*overflow == true && cycle < 10000) {
     // restore
     *signal = 5;
     *p = 0;
@@ -138,6 +146,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
       while (*p != chunk_num) {
         usleep(1);
       }
+      if (*overflow) break;
 
       // Advance_Crank_Nicolson
       *signal = 1;
@@ -148,6 +157,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
       while (*p != chunk_num) {
         usleep(1);
       }
+      if (*overflow) break;
 
       // Advance
       *signal = 2;
@@ -173,6 +183,7 @@ void Adaptive_Advance(long long chunk_num, double dt, boost::lockfree::queue<lon
 
 int main(int argc, char** argv) {
   std::vector<HH*> neuron;
+  double dx = 0.1;
   int num_threads = 0;
   if (argc == 1) {
     // default setup: an axon
@@ -190,14 +201,12 @@ int main(int argc, char** argv) {
   } else {
     num_threads = atoi(argv[1]);
     // swc setup
-    Neuromorphic::LoadSwc(argv[2], &neuron, DUPLICATE);
-    // neuron[0]->I = 1000;
-    // neuron[1]->gL = neuron[1]->area * 0.001;
-    // neuron[1]->eL = 0;
+    Neuromorphic::LoadSwc(argv[2], &neuron, DUPLICATE, dx);
+    // neuron[0]->I = 3;
     // neuron[136]->I = 100.0;
     // neuron[200]->I = 100.0;
     // neuron[12160]->I = 200.0;
-    Neuromorphic::RandomSynapse(&neuron, 1, 2000.0);
+    Neuromorphic::RandomSynapse(&neuron, 1, 3.0);
   }
   long long loop = neuron[0]->loop;
   vector<double> t1, t2, V1, V2;
@@ -258,27 +267,41 @@ int main(int argc, char** argv) {
       while (p != chunk_num) {
         usleep(1);
       }
-      signal = 1;
-      p = 0;
-      for (long long chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
-        queue.push(chunk_id);
-      }
-      while (p != chunk_num) {
-        usleep(1);
-      }
-      /*if (overflow == true) {
+      if (false) {
         new_i = neuron[0]->i;
         new_dt = neuron[0]->dt;
         printf("Detected overflow! i: %lld, dt: %f\n", new_i, new_dt);
         for (long long ni = 0; ni < (long long)neuron.size(); ++ni) {
-          neuron[ni]->PrintDebugInfo();
+          // neuron[ni]->PrintDebugInfo();
         }
         Adaptive_Advance(chunk_num, neuron[0]->dt, &queue, &signal, &p, &overflow, &new_i, &new_dt);
         printf("Fixed overflow! i: %lld, dt: %f\n", new_i, new_dt);
         for (long long ni = 0; ni < (long long)neuron.size(); ++ni) {
-          neuron[ni]->PrintDebugInfo();
+          // neuron[ni]->PrintDebugInfo();
         }
-      }*/
+      } else {
+        signal = 1;
+        p = 0;
+        for (long long chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
+          queue.push(chunk_id);
+        }
+        while (p != chunk_num) {
+          usleep(1);
+        }
+        if (false) {
+          new_i = neuron[0]->i;
+          new_dt = neuron[0]->dt;
+          printf("Detected overflow! i: %lld, dt: %f\n", new_i, new_dt);
+          for (long long ni = 0; ni < (long long)neuron.size(); ++ni) {
+            // neuron[ni]->PrintDebugInfo();
+          }
+          Adaptive_Advance(chunk_num, neuron[0]->dt, &queue, &signal, &p, &overflow, &new_i, &new_dt);
+          printf("Fixed overflow! i: %lld, dt: %f\n", new_i, new_dt);
+          for (long long ni = 0; ni < (long long)neuron.size(); ++ni) {
+            // neuron[ni]->PrintDebugInfo();
+          }
+        }
+      }
       signal = 2;
       p = 0;
       for (long long chunk_id = 0; chunk_id < chunk_num; ++chunk_id) {
@@ -290,7 +313,7 @@ int main(int argc, char** argv) {
     }
     neuron[0]->Record(&t1, &V1);
     neuron[neuron.size() - 1]->Record(&t2, &V2);
-    // neuron[12222]->Record(&t2, &V2);
+    //neuron[33]->Record(&t2, &V2);
   }
   if (num_threads > 0) {
     signal = 6;
