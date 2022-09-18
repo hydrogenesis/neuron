@@ -162,6 +162,7 @@ void Neuromorphic::LoadSwc(const char* filename, std::vector<HH*>* neuron, int d
   neuron->resize(neuron_size);
   for (long long i = 0; i < neuron_size; ++i) {
     (*neuron)[i] = new HH();
+    (*neuron)[i]->index = i;
   }
   std::cout << "duplicated neuron size: " << duplicate << " duplicates, " << neuron->size() << " compartments" << std::endl;
 

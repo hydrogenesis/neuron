@@ -13,6 +13,7 @@ class HH {
 private:
 public:
   long long i;
+  long long index;
   double I;
   double dt;
   long long loop;

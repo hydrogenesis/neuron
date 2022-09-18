@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #bazel build //main:main && bazel-bin/main/main && python plot.py
-#bazel build //main:main && bazel-bin/main/main 1 data/ADM21-7sec7_a.CNG.swc && python plot.py
+#bazel build //main:main && bazel-bin/main/main 94 data/ADM21-7sec7_a.CNG.swc && python plot.py
 bazel build //main:main && bazel-bin/main/main 94 data/ADM21-7sec10.CNG.swc && python plot.py
 #bazel build //main:main && bazel-bin/main/main 1 data/10_2REDO-850-GM18-Ctl-Ctl-Chow-BNL16A-CA1_Finished2d.CNG.swc && python plot.py
 #bazel build //main:main && bazel-bin/main/main 1 data/10_2REDO-850-GM18-Ctl-Ctl-Chow-BNL16A-CA1_Finished2h.CNG.swc && python plot.py

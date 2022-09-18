@@ -202,11 +202,12 @@ int main(int argc, char** argv) {
     num_threads = atoi(argv[1]);
     // swc setup
     Neuromorphic::LoadSwc(argv[2], &neuron, DUPLICATE, dx);
-    // neuron[0]->I = 3;
-    // neuron[136]->I = 100.0;
+    // neuron[0]->I = 1;
+    neuron[200]->I = 1.0;
+    neuron[600]->I = 1.0;
     // neuron[200]->I = 100.0;
     // neuron[12160]->I = 200.0;
-    Neuromorphic::RandomSynapse(&neuron, 1, 3.0);
+    // Neuromorphic::RandomSynapse(&neuron, 1, 3.0);
   }
   long long loop = neuron[0]->loop;
   vector<double> t1, t2, V1, V2;
@@ -216,7 +217,7 @@ int main(int argc, char** argv) {
   V2.reserve(loop);
   neuron[0]->Record(&t1, &V1);
   neuron[neuron.size() - 1]->Record(&t2, &V2);
-  // neuron[12221]->Record(&t2, &V2);
+  // neuron[100]->Record(&t2, &V2);
   // threading vars
   std::mutex m;
   std::condition_variable cv;
@@ -312,8 +313,8 @@ int main(int argc, char** argv) {
       }
     }
     neuron[0]->Record(&t1, &V1);
-    neuron[neuron.size() - 1]->Record(&t2, &V2);
-    //neuron[33]->Record(&t2, &V2);
+    // neuron[neuron.size() - 1]->Record(&t1, &V1);
+    neuron[neuron.size() - 100]->Record(&t2, &V2);
   }
   if (num_threads > 0) {
     signal = 6;

@@ -12,6 +12,7 @@ HH::HH():HH(0.0, 100, 0.01, -65, 0.05293248525724958, 0.5961207535084603, 0.3176
 HH::HH(double I, double tspan, double dt, double v, double mi, double hi, double ni,
       double gNa, double eNa, double gK, double eK, double gL, double eL, double g) {
   this->i = 0;
+  this->index = 0;
   this->I = I;
   this->dt = dt;
   this->loop = std::ceil(tspan / dt);
@@ -64,16 +65,23 @@ void HH::SetParams(double x, double y, double z, int type, double length, double
 
 double HH::DynamicI(double t, double I) const {
   // return I*std::sin(t);
-  if (1 <= t && t < 80) return I;
-  // else if (50 <= t && t < 51) return I;
-  else
-    return 0;
+  if (type == 2 || type == 1) return 0;
+  if (next.size() == 0) {
+    // printf("index: %lld\n", index);
+    if (1 <= t && t < 20) return 1;
+    // if (index == 200) {
+    //   if (1 <= t && t < 2) return I;
+    //   if (20 <= t && t < 21) return I;
+    // }
+    // if (index == 600) {
+    //   if (140 <= t && t < 141) return I;
+    //   if (160 <= t && t < 161) return I;
+    // }
+  }
+  return 0;
   if ((int)(t / 100) % 2 == 0) return I;
   else
     return 0.0;
-  // if (t < 50.0) return I;
-  // else
-  //   return 0.0;
 }
 
 void HH::Append(HH* next_hh) {
@@ -142,7 +150,6 @@ void HH::PrintDebugInfo() const {
 void HH::Advance_Crank_Nicolson(int iter_num) {
   double last_v = V1;
   double theta = 1;
-  bool threshold_reached = false;
   for (int it = 0; it < iter_num; ++it) {
     V1 = V + dt/C*(
         theta*(gNa*m1*m1*m1*h1*(eNa-(V1+65))
@@ -164,15 +171,10 @@ void HH::Advance_Crank_Nicolson(int iter_num) {
       V1 -= dt/C * (theta*(V1 - hh->V1) + (1-theta)*(V - hh->V)) * hh->g;
     }
     if ((V1 - last_v) < 1e-8) {
-      threshold_reached = true;
       break;
     }
     last_v = V1;
   }
-  // if (threshold_reached)
-  //   printf("threshold reached\n");
-  // else
-  //   printf("iteration reached\n");
 }
 
 void HH::Backup() {
