@@ -10,7 +10,7 @@ bytes_array = sys.argv[1]
 values = bytes_array.split(',')
 result = []
 for value in values:
-    result.append(hex_to_double(value))
+    result.append(hex_to_double(value.strip()))
 plt.plot(result)
 plt.ylabel('V(mV)')
 plt.savefig('sol.png')

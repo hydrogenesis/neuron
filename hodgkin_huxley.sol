@@ -1222,7 +1222,7 @@ contract HodgkinHuxley {
 
     uint256 i;
     bytes16 public dt;
-    uint256 public constant loop = 1000;
+    uint256 public loop;
     bytes16 public gNa;
     bytes16 public eNa;
     bytes16 public gK;
@@ -1234,12 +1234,20 @@ contract HodgkinHuxley {
     bytes16 public m;
     bytes16 public h;
     bytes16 public n;
-    bytes8 public from;
-    bytes8 public to;
-    bytes8 public I;
-    constructor(bytes8 dt1) {
+    bytes16 public from;
+    bytes16 public to;
+    bytes16 public I;
+
+    constructor() {
+      dt = bytes8(0x3fa999999999999a).fromDouble();    // 0.05
+      from = bytes8(0x0000000000000000).fromDouble(); // 0
+      to = bytes8(0x3ff0000000000000).fromDouble();   // 1.0
+      I = bytes8(0x0000000000000000).fromDouble();    // 10.0
+    }
+
+    function init(uint256 loop1) public {
         i = 0;
-        dt = dt1.fromDouble();
+        loop = loop1;
         gNa = bytes8(0x405e000000000000).fromDouble();  // 120.0
         eNa = bytes8(0x405cc00000000000).fromDouble();  // 115.0
         gK = bytes8(0x4042000000000000).fromDouble();   // 36.0 
@@ -1250,31 +1258,36 @@ contract HodgkinHuxley {
         V[0] = bytes8(0xc050400000000000).fromDouble(); // -65
         t = new bytes16[](loop);
         t[0] = bytes8(0x0000000000000000).fromDouble(); // 0
-        m = bytes8(0x3fe0000000000000).fromDouble();    // 0.5
-        h = bytes8(0x3faeb851eb851eb8).fromDouble();    // 0.06
-        n = bytes8(0x3fe0000000000000).fromDouble();    // 0.5
+        // t = bytes8(0x0000000000000000).fromDouble();    // 0
+        m = bytes8(0x3fab19f77a26daef).fromDouble();    // 0.05293248525724958
+        h = bytes8(0x3fe3136bd4992492).fromDouble();    // 0.5961207535084603
+        n = bytes8(0x3fd454d18d256ef8).fromDouble();    // 0.3176769140606974
     }
 
     function setI(bytes8 from1, bytes8 to1, bytes8 I1) public {
-      from = from1;
-      to = to1;
-      I = I1;
+      from = from1.fromDouble();
+      to = to1.fromDouble();
+      I = I1.fromDouble();
     }
 
-    function dynamicI(bytes16 t_now) public returns (bytes16) {
+    function dynamicI(bytes16 t_now) public view returns (bytes16) {
       if (t_now.cmp(from) >= 0 && t_now.cmp(to) <= 0) return I;
       return bytes8(0x0000000000000000).fromDouble();
     }
 
-    function Advance_Euler() public returns (bytes8) {
+    function Advance_Euler(uint256 loop1, bytes8 dt1, bytes8 I1) public returns (bytes8) {
+      init(loop1);
+      dt = dt1;
+      I = I1;
       for (i = 0; i < loop - 1; i++) {
-        t[i+1] = i.fromUInt().mul(dt);
         // a = V + 65
         bytes16 a = V[i].add(bytes8(0x4050400000000000).fromDouble());
         bytes16 INa = gNa.mul(m).mul(m).mul(m).mul(h).mul(eNa.sub(a));
         bytes16 IK = gK.mul(n).mul(n).mul(n).mul(n).mul(eK.sub(a));
         bytes16 IL = gL.mul(eL.sub(a));
         V[i+1] = V[i].add(dt.mul(INa.add(IK).add(IL).add(dynamicI(t[i]))));
+        t[i+1] = (i+1).fromUInt().mul(dt);
+        // t = i.fromUInt().mul(dt);
         // m[i+1] = m[i] + dt*(alphaM(V[i])*(1-m[i]) - betaM(V[i])*m[i]);
         m = m.add(dt.mul(alphaM(V[i]).mul(bytes8(0x3ff0000000000000).fromDouble().sub(m)).sub(betaM(V[i]).mul(m))));
         // h[i+1] = h[i] + dt*(alphaH(V[i])*(1-h[i]) - betaH(V[i])*h[i]);
@@ -1289,6 +1302,14 @@ contract HodgkinHuxley {
       bytes8[] memory ret = new bytes8[](loop);
       for (uint16 k = 0; k < loop; k++) {
         ret[k] = V[k].toDouble();
+      }
+      return ret;
+    }
+
+    function getT() public view returns (bytes8[] memory) {
+      bytes8[] memory ret = new bytes8[](loop);
+      for (uint16 k = 0; k < loop; k++) {
+        ret[k] = t[k].toDouble();
       }
       return ret;
     }
